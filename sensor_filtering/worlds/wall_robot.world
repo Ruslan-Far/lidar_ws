@@ -134,15 +134,15 @@
       <pose>-4.99072 -1.06083 0 0 -0 0</pose>
     </model>
     <state world_name='default'>
-      <sim_time>487 433000000</sim_time>
-      <real_time>489 898745745</real_time>
-      <wall_time>1715102036 479826374</wall_time>
-      <iterations>487433</iterations>
+      <sim_time>607 692000000</sim_time>
+      <real_time>36 50562822</real_time>
+      <wall_time>1715107720 506602909</wall_time>
+      <iterations>35887</iterations>
       <model name='grey_wall'>
-        <pose>-5 0 0 0 -0 1.57</pose>
+        <pose>-5.10153 8.1e-05 0 0 -0 1.57</pose>
         <scale>1 1 1</scale>
         <link name='link'>
-          <pose>-5 0 1.4 0 -0 1.57</pose>
+          <pose>-5.10153 8.1e-05 1.4 0 -0 1.57</pose>
           <velocity>0 0 0 0 -0 0</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -164,7 +164,7 @@
     </state>
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose>6.75665 3.00835 9.95508 0 0.847643 -3.059</pose>
+        <pose>4.61033 0.956422 10.8605 0 1.0058 -3.13103</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
       </camera>
