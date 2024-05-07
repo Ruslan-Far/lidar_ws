@@ -1,170 +1,129 @@
 #!/usr/bin/env python
 
 import sys
-import rospy, roslib
+import rospy
 from sensor_msgs.msg import LaserScan
 import math
 import time
+import numpy as np
 
-class Filter:
+class CalcDistDir:
 
-	LINEAR_SPEED = 0.3
-	ANGULAR_SPEED = 1.5
-	MIN_SCAN_ANGLE = 30 / 180 * math.pi
-	MAX_SCAN_ANGLE = 330 / 180 * math.pi
-	TIME_ORIENT_CIRCLE = 9
-	TIME_POSITION = 4
-	TIME_ORIENT = 2 + TIME_ORIENT_CIRCLE
-	MIN_DIST_FROM_OBSTACLE = 0.8
-	DELTA_TIME_FOR_CIRCLE = 10
+	SCAN_ANGLE_DEG = 2 # угол = 2 градуса с одной стороны, начиная от центра
+	SCAN_ANGLE = SCAN_ANGLE_DEG / 180 * math.pi # перевод в радианы
+	NUM_TERMS = 2 * SCAN_ANGLE_DEG + 1 # в итоге получится обзор = 2 * 2 + 1 = 5 градусов
+
+	N = 10 # количество измерений
+	START_DIST = 5 # по оси x 5 метров от робота до препятствия при запуске программы
 
 	def resetFields(self):
-		self.isObstacle = True
-		self.isRotation = False
-		self.isAfterOddRotation = False
-		self.flagTimePosition = False
-		self.flagTimeOrient = False
-		self.numRotation = 0
-		self.startTimePosition = 0
-		self.startTimeOrient = 0
-		self.lastTimeCircle = 0
+		self.sumDists = 0
+		self.numDists = self.N
+		self.countN = 0
+		# self.buf = np.zeros((self.N))
 
 
 	def __init__(self):
 
-		self.isAchieved = False
-		self.isSearch = True
-		self.prevSearch = self.isSearch
+		self.ultimateDistPrev = self.START_DIST
+
+		self.isDefined = True
+
 		self.resetFields()
 
-		self.scanSub = rospy.Subscriber("/scan/raw", LaserScan, self.scanCallback, queue_size=1)
+		self.scanFilteredSub = rospy.Subscriber("/scan/filtered", LaserScan, self.scanFilteredCallback, queue_size=1)
 
 
-	def followerSnakeSearchCallback(self, msg):
-		if self.isAchieved: # block
-			return
-		if msg.is_achieved:
-			print("followerSnakeSearchCallback Target is reached!")
-			self.stop()
-			self.isAchieved = msg.is_achieved
-			return
-		self.isSearch = msg.is_search
-		if self.isSearch != self.prevSearch:
-			self.stop()
-			self.resetFields()
-			self.prevSearch = self.isSearch
-
-
-	def initStartTimePosition(self):
-		if (self.flagTimePosition):
-			self.startTimePosition = time.time()
-			self.flagTimePosition = False
-			# print("startTimePosition=", self.startTimePosition)
-
-
-	def initStartTimeOrient(self):
-		if (self.flagTimeOrient):
-			self.startTimeOrient = time.time()
-			self.flagTimeOrient = False
-			# print("startTimeOrient=", self.startTimeOrient)
-
-
-	def blockJustCircle(self, isJustCircle):
-		if not isJustCircle:
-			self.lastTimeCircle = time.time()
-
-
-	def runRotation(self, isJustCircle):
-		self.blockJustCircle(isJustCircle)
-
-		self.initStartTimeOrient()
-		curTimeOrient = time.time()
-		deltaTimeOrient = curTimeOrient - self.startTimeOrient
-
-		# print("keepTrackOfTimeForSnake curTimeOrient =", curTimeOrient)
-		# print("keepTrackOfTimeForSnake deltaTimeOrient =", deltaTimeOrient)
-		if isJustCircle:
-			time_orient = self.TIME_ORIENT_CIRCLE
-		else:
-			time_orient = self.TIME_ORIENT
-		if deltaTimeOrient >= time_orient:
-			# print("keepTrackOfTimeForSnake isRotation")
-			self.stop()
-			self.lastTimeCircle = time.time()
-			self.isRotation = False
-			if isJustCircle:
-				return
-			if (self.numRotation % 2 == 0):
-				self.isAfterOddRotation = True
-			self.numRotation = (self.numRotation + 1) % 4
-
-
-	def runAfterOddRotation(self, isJustCircle):
-		self.blockJustCircle(isJustCircle)
-
-		self.initStartTimePosition()
-		curTimePosition = time.time()
-		deltaTimePosition = curTimePosition - self.startTimePosition
-		
-		# print("keepTrackOfTimeForSnake curTimePosition =", curTimePosition)
-		# print("keepTrackOfTimeForSnake deltaTimePosition =", deltaTimePosition)
-		if deltaTimePosition >= self.TIME_POSITION:
-			# print("keepTrackOfTimeForSnake isAfterOddRotation")
-			self.stop()
-			self.flagTimeOrient = True
-			self.isRotation = True
-			self.isAfterOddRotation = False
-
-
-	def keepTrackOfTimeForSnake(self, isJustCircle=False):
-		if (self.isRotation):
-			self.runRotation(isJustCircle)
-		if (self.isAfterOddRotation):
-			self.runAfterOddRotation(isJustCircle)
-
-
-	def scanCallback(self, scan):
-		if self.isAchieved: # block
-			return
-		isObstacleInFront = False
-		minIndex = math.ceil((self.MIN_SCAN_ANGLE - scan.angle_min) / scan.angle_increment)
-		maxIndex = math.ceil((self.MAX_SCAN_ANGLE - scan.angle_min) / scan.angle_increment)
+	def calcAverage(self, minIndex, maxIndex, arr):
 		curIndex = minIndex
+		sumTerms = 0
+		numTerms = self.NUM_TERMS
 
-		# print("SCAN_SCAN_SCAN")
-		while curIndex != maxIndex - 1:
-			if curIndex < 0:
-				curIndex = 360 + curIndex
-			if scan.ranges[int(curIndex)] <= self.MIN_DIST_FROM_OBSTACLE:
-				isObstacleInFront = True
-				break
-			curIndex -= 1
-		if isObstacleInFront:
-			self.isObstacle = True
-			if not self.isRotation:
-				# print("scanCallback isObstacle")
-				self.stop()
-				self.isRotation = True
-				self.flagTimeOrient = True
-				self.isAfterOddRotation = False
-				self.flagTimePosition = True
-				self.keepTrackOfTimeForSnake() # чтобы избежать возможный повторный круг
+		while curIndex <= maxIndex:
+			term = arr[curIndex]
+			if term != -1:
+				sumTerms += term
+			else:
+				numTerms -= 1
+			curIndex += 1
+
+		if numTerms != 0:
+			return sumTerms / numTerms
+		return -1
+
+
+	def scanFilteredCallback(self, scan):
+		middle = round(((abs(scan.angle_min) + abs(scan.angle_max)) / 2) / scan.angle_increment)
+		scanAngle = round(self.SCAN_ANGLE / scan.angle_increment)
+		minIndex = middle - scanAngle
+		maxIndex = middle + scanAngle
+		# curIndex = minIndex
+		# sumTerms = 0
+		# numTerms = self.NUM_TERMS
+
+
+
+
+		# while curIndex <= maxIndex:
+		# 	term = scan.ranges[curIndex]
+		# 	if term != -1:
+		# 		sumTerms += term
+		# 	else:
+		# 		numTerms -= 1
+		# 	curIndex += 1
+
+		# self.buf[self.countN] = self.calcAverage(minIndex, maxIndex, scan.ranges, self.NUM_TERMS)
+		# self.countN += 1
+		# if self.countN >= self.N:
+		# 	self.countN = 0
+
+		# if self.buf[self.N - 1] == 0:
+		# 	return
+		# ultimateDist = self.calcAverage(0, self.N - 1, self.buf, self.N)
+		# sumTerms = 0
+		# curIndex = 0
+
+
+
+
+
+		curDist = self.calcAverage(minIndex, maxIndex, scan.ranges)
+		if curDist != -1:
+			self.sumDists += curDist
 		else:
-			self.isObstacle = False
-		self.pubSnakeSearchStatus(scan.ranges)
+			self.numDists -= 1
+		self.countN += 1
+
+		if self.countN == self.N:
+			ultimateDist = self.sumDists / self.N
+			if ultimateDist != 0:
+				if self.isDefined:
+					if self.ultimateDistPrev == ultimateDist:
+						print("Стоит на месте")
+					elif self.ultimateDistPrev < ultimateDist:
+						print("Отдаляется")
+					else:
+						print("Приближается")
+				print("Расстояние =", ultimateDist)
+				self.ultimateDistPrev = ultimateDist
+				self.isDefined = True
+			else:
+				print("Неизвестно")
+				self.isDefined = False
+			self.resetFields()
 
 
 	def start(self):
-		rospy.init_node("filter", anonymous = False)
+		rospy.init_node("calc_dist_dir", anonymous = False)
 		rospy.spin()
 
 
 def main(args):
 	try:
-		filter = Filter()
-		filter.start()
+		calc_dist_dir = CalcDistDir()
+		calc_dist_dir.start()
 	except rospy.ROSInterruptException:
-		print("filter Shutting down")
+		print("calc_dist_dir Shutting down")
 
 
 if __name__ == '__main__':
