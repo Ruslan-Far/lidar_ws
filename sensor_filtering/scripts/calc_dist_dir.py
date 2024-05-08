@@ -4,8 +4,6 @@ import sys
 import rospy
 from sensor_msgs.msg import LaserScan
 import math
-import time
-import numpy as np
 
 class CalcDistDir:
 
@@ -17,17 +15,16 @@ class CalcDistDir:
 	START_DIST = 5 # по оси x 5 метров от робота до препятствия при запуске программы
 
 	def resetFields(self):
-		self.sumDists = 0
-		self.numDists = self.N
-		self.countN = 0
-		# self.buf = np.zeros((self.N))
+		self.sumDists = 0 # сумма расстояний
+		self.numDists = self.N # число измеренных расстояний (не включая неопределенных)
+		self.countN = 0 # счетчик замеров
 
 
 	def __init__(self):
 
-		self.ultimateDistPrev = self.START_DIST
+		self.ultimateDistPrev = self.START_DIST # инициализация начальным значением, которая будет хранить предыдущие расстояния
 
-		self.isDefined = True
+		self.isDefined = True # переключатель (при неопределенности значение False)
 
 		self.resetFields()
 
@@ -53,51 +50,23 @@ class CalcDistDir:
 
 
 	def scanFilteredCallback(self, scan):
+
 		middle = round(((abs(scan.angle_min) + abs(scan.angle_max)) / 2) / scan.angle_increment)
 		scanAngle = round(self.SCAN_ANGLE / scan.angle_increment)
 		minIndex = middle - scanAngle
 		maxIndex = middle + scanAngle
-		# curIndex = minIndex
-		# sumTerms = 0
-		# numTerms = self.NUM_TERMS
 
-
-
-
-		# while curIndex <= maxIndex:
-		# 	term = scan.ranges[curIndex]
-		# 	if term != -1:
-		# 		sumTerms += term
-		# 	else:
-		# 		numTerms -= 1
-		# 	curIndex += 1
-
-		# self.buf[self.countN] = self.calcAverage(minIndex, maxIndex, scan.ranges, self.NUM_TERMS)
-		# self.countN += 1
-		# if self.countN >= self.N:
-		# 	self.countN = 0
-
-		# if self.buf[self.N - 1] == 0:
-		# 	return
-		# ultimateDist = self.calcAverage(0, self.N - 1, self.buf, self.N)
-		# sumTerms = 0
-		# curIndex = 0
-
-
-
-
-
-		curDist = self.calcAverage(minIndex, maxIndex, scan.ranges)
+		curDist = self.calcAverage(minIndex, maxIndex, scan.ranges) # текущее среднее расстояние (из обзора в 5 градусов) в одном измерении
 		if curDist != -1:
 			self.sumDists += curDist
 		else:
 			self.numDists -= 1
 		self.countN += 1
 
-		if self.countN == self.N:
-			ultimateDist = self.sumDists / self.N
-			if ultimateDist != 0:
-				if self.isDefined:
+		if self.countN == self.N: # когда проведено 10 измерений
+			ultimateDist = self.sumDists / self.N # окончательное среднее расстояние
+			if ultimateDist != 0: # если нет неопределенности
+				if self.isDefined: # если предыдущее измерение тоже определенное (иначе мы не можем знать направление, так как только вышли из неопределенности)
 					if self.ultimateDistPrev == ultimateDist:
 						print("Стоит на месте")
 					elif self.ultimateDistPrev < ultimateDist:
