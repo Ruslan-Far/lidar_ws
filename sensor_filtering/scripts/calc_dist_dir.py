@@ -9,10 +9,10 @@ class CalcDistDir:
 
 	SCAN_ANGLE_DEG = 2 # угол = 2 градуса с одной стороны, начиная от центра
 	SCAN_ANGLE = SCAN_ANGLE_DEG / 180 * math.pi # перевод в радианы
-	NUM_TERMS = 2 * SCAN_ANGLE_DEG + 1 # в итоге получится обзор = 2 * 2 + 1 = 5 градусов
 
 	N = 10 # количество измерений
-	START_DIST = 5 # по оси x 5 метров от робота до препятствия при запуске программы
+	START_DIST = 5.067 # по оси x 5.067 метров от робота до препятствия при запуске программы
+	DELTA_DIST = 0.03 # 3 см и меньше - незначительное изменение
 
 	def resetFields(self):
 		self.sumDists = 0 # сумма расстояний
@@ -34,7 +34,7 @@ class CalcDistDir:
 	def calcAverage(self, minIndex, maxIndex, arr):
 		curIndex = minIndex
 		sumTerms = 0
-		numTerms = self.NUM_TERMS
+		numTerms = maxIndex - minIndex + 1 # обзор = 5 градусов
 
 		while curIndex <= maxIndex:
 			term = arr[curIndex]
@@ -64,10 +64,11 @@ class CalcDistDir:
 		self.countN += 1
 
 		if self.countN == self.N: # когда проведено 10 измерений
-			ultimateDist = self.sumDists / self.N # окончательное среднее расстояние
-			if ultimateDist != 0: # если нет неопределенности
+			print("self.numDists =", self.numDists)
+			if self.numDists != 0: # если нет неопределенности
+				ultimateDist = self.sumDists / self.numDists # окончательное среднее расстояние
 				if self.isDefined: # если предыдущее измерение тоже определенное (иначе мы не можем знать направление, так как только вышли из неопределенности)
-					if self.ultimateDistPrev == ultimateDist:
+					if abs(self.ultimateDistPrev - ultimateDist) <= self.DELTA_DIST:
 						print("Стоит на месте")
 					elif self.ultimateDistPrev < ultimateDist:
 						print("Отдаляется")
