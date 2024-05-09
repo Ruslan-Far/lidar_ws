@@ -9,7 +9,6 @@ import numpy as np
 from matplotlib.patches import Rectangle
 from matplotlib.patches import Circle
 from matplotlib.patches import Arrow
-from matplotlib.animation import FuncAnimation
 
 class CalcDistDir:
 
@@ -160,7 +159,8 @@ class CalcDistDir:
 		y = np.zeros(maxSize)
 		plt.ion()
 		# plt.clf()
-		# fig, ax = plt.subplots()
+		fig, ax = plt.subplots()
+		ax.add_patch(Circle((0, 0), 0.5))
 		# ax.set_title("Animation")
 		# ax.axis([-8, 8, -8, 8])
 		# ax.set_xlabel("X")
@@ -168,26 +168,32 @@ class CalcDistDir:
 		# ax.add_patch(Rectangle((5, -6), 1, 12))
 		# plt.draw()
 		# plt.gcf().canvas.flush_events()
+		
 
 
 		for delay in np.arange(-50.0, 200.0, 1.0):
-			y = self.gaussian(x, delay, sigma)
+			# y = self.gaussian(x, delay, sigma)
 
-			# !!! Очистить текущую фигуру
-			plt.clf()
+			# plt.clf()
+			# fig, ax = plt.subplots()
+			# ax.clear()
 
-			# Отобразить график
-			plt.plot(x, y)
+			ax.cla()
+			ax.set_title("Animation")
+			ax.axis([-8, 8, -8, 8])
+			ax.set_xlabel("X")
+			ax.set_ylabel("Y")
+			ax.add_patch(Rectangle((5, -6), 1, abs(delay / 10)))
+			plt.text(-7, 6, "Направление: " + str(delay))
 
-			# Установка отображаемых интервалов по осям
-			plt.xlim(0, maxSize)
-			plt.ylim(-1.1, 1.1)
 
-			# !!! Следующие два вызова требуются для обновления графика
+			# plt.plot(x, y)
+
+			# plt.xlim(0, maxSize)
+			# plt.ylim(-1.1, 1.1)
+
 			plt.draw()
 			plt.gcf().canvas.flush_events()
-
-			# Задержка перед следующим обновлением
 			rate.sleep()
 		# while not rospy.is_shutdown():
 		# 	plt.clf()
@@ -205,39 +211,6 @@ class CalcDistDir:
 		# plt.show()
 
 		# rospy.spin()
-
-
-
-
-		# print(rospy.get_param("calc_dist_dir/x_pos"))
-
-		# bgcolor("black")
-		# color("yellow")
-		# speed(1121)
-		# right(45)
-		# while True:
-		# 	for i in range(150):
-		# 		circle(30)
-		# 		if 7 < i < 62:
-		# 			left(5)
-		# 		if 80 < i < 133:
-		# 			right(5)
-		# 		if i < 80:
-		# 			forward(10)
-		# 		else:
-		# 			forward(5)
-			
-		# plt.plot([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [0, 1, 2, 3, 4, 5])
-		# plt.figure(figsize=(12, 10))
-		# plt.title('Line Graph')
-		# plt.xlabel('X')
-		# plt.ylabel('Y')
-		# plt.show()
-
-				# plt.xlim([-5, 8])
-		# plt.ylim([-3, 3])
-		# plt.xlabel('X')
-		# plt.ylabel('Y')
 
 
 def main(args):
