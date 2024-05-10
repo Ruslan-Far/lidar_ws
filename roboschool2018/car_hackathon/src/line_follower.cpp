@@ -8,14 +8,16 @@
 #include <car_hackathon/CarHackathonConfig.h>
 #include <dynamic_reconfigure/server.h>
 
-float Kp = 0.1;
-float Ki = 0.05;
-float Kd = 0.15;
+float Kp = 0.0;
+float Ki = 0.0;
+float Kd = 0.0;
 
 const float dt = 0.026; // в секундах
 
 float sumErr = 0.0;
 float prevErr = 0.0;
+
+float limitPxl = 0.0;
 
 void image_callback(const sensor_msgs::Image::ConstPtr& msg);
 void motors(int16_t left, int16_t right);
@@ -27,6 +29,7 @@ void reconfigureCB(car_hackathon::CarHackathonConfig &config, uint32_t level)
 	Kp = config.Kp;
 	Ki = config.Ki;
 	Kd = config.Kd;
+	limitPxl = config.limitPxl;
 }
 
 const uint16_t MAX_PWM = 255;
@@ -81,7 +84,23 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg)
 	}
 
     cv::Moments M = cv::moments(mask);
-    if (M.m00 > 0) {
+    if (M.m00 > 0 && M.m00 < limitPxl) {
+		// if (M.m00 > limitPxl) {
+		// 	for (int y = search_top; y <= search_bottom; y++) {
+		// 		for (int x = 0; x < width / 2.0 - 50.0; x++) {
+		// 			mask.at<cv::Vec3b>(y, x)[0] = 0;
+		// 			mask.at<cv::Vec3b>(y, x)[1] = 0;
+		// 			mask.at<cv::Vec3b>(y, x)[2] = 0;
+		// 		}
+		// 	}
+		// 	for (int y = search_top; y <= search_bottom; y++) {
+		// 		for (int x = width / 2.0 + 50.0; x < width; x++) {
+		// 			mask.at<cv::Vec3b>(y, x)[0] = 0;
+		// 			mask.at<cv::Vec3b>(y, x)[1] = 0;
+		// 			mask.at<cv::Vec3b>(y, x)[2] = 0;
+		// 		}
+		// 	}
+		// }
         int cx = int(M.m10 / M.m00);
         int cy = int(M.m01 / M.m00);
         cv::circle(image, cv::Point(cx, cy), 20, CV_RGB(0, 0, 255), -1);
