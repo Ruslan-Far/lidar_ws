@@ -5,10 +5,27 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <car_msgs/MotorsControl.h>
 #include <stdint.h>
+#include <car_hackathon/CarHackathonConfig.h>
+#include <dynamic_reconfigure/server.h>
+
+float Kp = 0.1;
+float Ki = 0.05;
+float Kd = 0.15;
+
+float sumErr = 0.0;
+float prevErr = 0.0;
 
 void image_callback(const sensor_msgs::Image::ConstPtr& msg);
 void motors(int16_t left, int16_t right);
 int16_t truncate(int16_t pwm);
+
+void reconfigureCB(car_hackathon::CarHackathonConfig &config, uint32_t level)
+{
+    ROS_INFO("Config changed");
+	Kp = config.Kp;
+	Ki = config.Ki;
+	Kd = config.Kd;
+}
 
 const uint16_t MAX_PWM = 255;
 
@@ -19,28 +36,19 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "line_follower");
     ros::NodeHandle nh;
 
+	std::shared_ptr<dynamic_reconfigure::Server<car_hackathon::CarHackathonConfig>> dsrv_ = std::make_shared<
+    						dynamic_reconfigure::Server<car_hackathon::CarHackathonConfig>>(ros::NodeHandle("/car_hackathon/config"));
+
+	dynamic_reconfigure::Server<car_hackathon::CarHackathonConfig>::CallbackType cb
+		= boost::bind(&reconfigureCB, _1, _2);
+	dsrv_->setCallback(cb);
+
     auto sub = nh.subscribe("/car_gazebo/camera1/image_raw", 5, image_callback);
     pub = nh.advertise<car_msgs::MotorsControl>("/motors_commands", 10);
 
     ros::spin();
     return 0;
 }
-
-// void follow(cv::Mat image, cv::Mat mask) {
-// 	cv::Moments M = cv::moments(mask);
-
-//     if (M.m00 > 0) {
-//         int cx = int(M.m10 / M.m00);
-//         int cy = int(M.m01 / M.m00);
-//         cv::circle(image, cv::Point(cx, cy), 20, CV_RGB(255, 0, 0), -1);
-
-//         int err = cx - width / 2;
-//         geometry_msgs::Twist cmd;
-//         cmd.linear.x = 0.1;
-//         cmd.angular.z = -(float)err / 500;
-//         cmdVelPublisher.publish(cmd);
-//     }
-// }
 
 void image_callback(const sensor_msgs::ImageConstPtr& msg)
 {        
@@ -71,9 +79,10 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
+	// ROS_INFO("Kp = %f", Kp);
+	// ROS_INFO("Ki = %f", Ki);
+	// ROS_INFO("Kd = %f", Kd);
 
-
-	float Kp = 1.0 / 100.0;
     cv::Moments M = cv::moments(mask);
     if (M.m00 > 0) {
         int cx = int(M.m10 / M.m00);
@@ -81,18 +90,16 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg)
         cv::circle(image, cv::Point(cx, cy), 20, CV_RGB(255, 0, 0), -1);
 
         int err = cx - width / 2;
-		float cmd = Kp * err;
+		sumErr += err;
+		float cmd = Kp * err + Ki * sumErr + Kd * (err - prevErr);
+		// float cmd = Kp * err;
 		ROS_INFO("cmd = %f", cmd);
-		motors(5 + cmd, 5 - cmd);
-		// motors(500,500);
-        // cmd.angular.z = -(float)err / 500;
+		motors(50 + cmd, 50 - cmd);
+		prevErr = err;
     }
 
-    // TODO: control the motors
-    // motors(50,50);
-
     cv::imshow("img", image);
-    cv::imshow("binary", mask);
+    // cv::imshow("binary", mask);
     cv::waitKey(1);
 }
 
