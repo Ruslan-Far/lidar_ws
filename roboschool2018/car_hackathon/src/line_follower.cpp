@@ -118,6 +118,8 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg)
 		motors(50 + cmd, 50 - cmd);
 		prevErr = err;
     }
+	else
+		motors(50, 50);
 
     cv::imshow("img", image);
     cv::waitKey(1);
