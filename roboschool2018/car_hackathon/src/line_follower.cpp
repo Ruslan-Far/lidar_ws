@@ -12,6 +12,8 @@ float Kp = 0.1;
 float Ki = 0.05;
 float Kd = 0.15;
 
+const float dt = 0.026; // в секундах
+
 float sumErr = 0.0;
 float prevErr = 0.0;
 
@@ -28,7 +30,6 @@ void reconfigureCB(car_hackathon::CarHackathonConfig &config, uint32_t level)
 }
 
 const uint16_t MAX_PWM = 255;
-
 ros::Publisher pub;
 
 int main(int argc, char** argv)
@@ -79,27 +80,27 @@ void image_callback(const sensor_msgs::ImageConstPtr& msg)
 		}
 	}
 
-	// ROS_INFO("Kp = %f", Kp);
-	// ROS_INFO("Ki = %f", Ki);
-	// ROS_INFO("Kd = %f", Kd);
-
     cv::Moments M = cv::moments(mask);
     if (M.m00 > 0) {
         int cx = int(M.m10 / M.m00);
         int cy = int(M.m01 / M.m00);
-        cv::circle(image, cv::Point(cx, cy), 20, CV_RGB(255, 0, 0), -1);
+        cv::circle(image, cv::Point(cx, cy), 20, CV_RGB(0, 0, 255), -1);
 
-        int err = cx - width / 2;
-		sumErr += err;
-		float cmd = Kp * err + Ki * sumErr + Kd * (err - prevErr);
-		// float cmd = Kp * err;
-		ROS_INFO("cmd = %f", cmd);
+        int err = cx - width / 2.0;
+		ROS_INFO("err = %d", err);
+		sumErr += err * dt;
+
+		float P = Kp * err;
+		float I = Ki * sumErr;
+		float D = Kd * (err - prevErr) / dt;
+
+		float cmd = P + I + D;
+
 		motors(50 + cmd, 50 - cmd);
 		prevErr = err;
     }
 
     cv::imshow("img", image);
-    // cv::imshow("binary", mask);
     cv::waitKey(1);
 }
 
