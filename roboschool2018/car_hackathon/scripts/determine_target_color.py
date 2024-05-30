@@ -39,39 +39,16 @@ def image_callback(msg: Image, cv_bridge: CvBridge) -> None:
 
 	img_hsv = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2HSV)
 
-	h_min = cv2.getTrackbarPos(TRACK_H_MIN, WINDOW_BIN)
-	h_max = cv2.getTrackbarPos(TRACK_H_MAX, WINDOW_BIN)
-	s_min = cv2.getTrackbarPos(TRACK_S_MIN, WINDOW_BIN)
-	s_max = cv2.getTrackbarPos(TRACK_S_MAX, WINDOW_BIN)
-	v_min = cv2.getTrackbarPos(TRACK_V_MIN, WINDOW_BIN)
-	v_max = cv2.getTrackbarPos(TRACK_V_MAX, WINDOW_BIN)
-
 	img_hsv_thresh = cv2.inRange(img_hsv, (h_min, s_min, v_min), (h_max, s_max, v_max))
 	# img_hsv_thresh = 255 - img_hsv_thresh
 
 	cv2.imshow(WINDOW_ORIG, img_rgb)
-	cv2.imshow(WINDOW_BIN, img_hsv_thresh)
+	# cv2.imshow(WINDOW_BIN, img_hsv_thresh)
 	cv2.waitKey(1)
 
 
 def main() -> None:
 	rospy.init_node(ROS_NODE_NAME)
-
-	cv2.namedWindow(WINDOW_BIN)
-
-	cv2.createTrackbar(TRACK_H_MIN, WINDOW_BIN, 0, 179, nothing)
-	cv2.createTrackbar(TRACK_H_MAX, WINDOW_BIN, 0, 179, nothing)
-	cv2.createTrackbar(TRACK_S_MIN, WINDOW_BIN, 0, 255, nothing)
-	cv2.createTrackbar(TRACK_S_MAX, WINDOW_BIN, 0, 255, nothing)
-	cv2.createTrackbar(TRACK_V_MIN, WINDOW_BIN, 0, 255, nothing)
-	cv2.createTrackbar(TRACK_V_MAX, WINDOW_BIN, 0, 255, nothing)
-
-	cv2.setTrackbarPos(TRACK_H_MIN, WINDOW_BIN, h_min)
-	cv2.setTrackbarPos(TRACK_H_MAX, WINDOW_BIN, h_max)
-	cv2.setTrackbarPos(TRACK_S_MIN, WINDOW_BIN, s_min)
-	cv2.setTrackbarPos(TRACK_S_MAX, WINDOW_BIN, s_max)
-	cv2.setTrackbarPos(TRACK_V_MIN, WINDOW_BIN, v_min)
-	cv2.setTrackbarPos(TRACK_V_MAX, WINDOW_BIN, v_max)
 
 	sample: Image = rospy.wait_for_message(ROS_IMAGE_TOPIC, Image, timeout = 3.0)
 
